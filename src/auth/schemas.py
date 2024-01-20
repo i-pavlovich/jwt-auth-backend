@@ -1,6 +1,23 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class JWTPayloadSchema(BaseModel):
+    sub: str
+    exp: datetime
+    is_admin: bool
+
+
+class TokenResponseSchema(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+
+
+class UserAuthenticationSchema(BaseModel):
+    email: EmailStr
+    password: str
 
 
 class UserRegistrationSchema(BaseModel):
