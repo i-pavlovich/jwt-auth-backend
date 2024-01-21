@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import services
 from auth.dependencies import valid_user_registration
-from auth.jwt import encode_jwt
-from auth.models import User
+from auth.models import RefreshToken, User
 from auth.schemas import (
     TokenResponseSchema,
     UserAuthenticationSchema,
     UserRegistrationSchema,
     UserSchema,
 )
+from auth.utils import encode_jwt, get_refresh_token_cookie_settings
 from database import get_session
 
 
@@ -32,8 +32,13 @@ async def user_registration(
 @router.post("/authentication")
 async def user_authentication(
     data: UserAuthenticationSchema,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> TokenResponseSchema:
     user: User = await services.authenticate_user(data, session)
-    access_token = encode_jwt(user)
-    return TokenResponseSchema(access_token=access_token)
+    refresh_token: RefreshToken = await services.create_refresh_token(user.id, session)
+    cookie_settings = get_refresh_token_cookie_settings(refresh_token)
+    response.set_cookie(**cookie_settings)
+    return TokenResponseSchema(
+        access_token=encode_jwt(user), refresh_token=refresh_token.value
+    )

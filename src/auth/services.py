@@ -1,11 +1,15 @@
+import uuid
+from datetime import datetime, timedelta
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.models import User
+from auth.models import RefreshToken, User
 from auth.security import hash_password, validate_password
 from auth.schemas import UserAuthenticationSchema, UserRegistrationSchema
+from config import settings
 
 
 async def create_user(
@@ -52,3 +56,19 @@ async def authenticate_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="The account is deleted."
         )
     return user
+
+
+async def create_refresh_token(
+    user_id: int,
+    session: AsyncSession,
+    exp_delta: timedelta = timedelta(days=settings.REFRESH_TOKEN_EXP_DAYS),
+):
+    refresh_token = RefreshToken(
+        user_id=user_id,
+        value=str(uuid.uuid4()),
+        expires_at=datetime.utcnow() + exp_delta,
+    )
+    session.add(refresh_token)
+    await session.commit()
+    await session.refresh(refresh_token)
+    return refresh_token
