@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import ForeignKey, String, func
+from sqlalchemy import ForeignKey, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -18,7 +18,9 @@ class User(Base):
     name: Mapped[Optional[str]] = mapped_column(String(75))
     surname: Mapped[Optional[str]] = mapped_column(String(75))
 
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        server_default=text("TIMEZONE('utc', now())")
+    )
     updated_at: Mapped[Optional[datetime]] = mapped_column(onupdate=datetime.now)
     verified_at: Mapped[Optional[datetime]]
 
@@ -36,7 +38,9 @@ class RefreshToken(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     value: Mapped[str] = mapped_column(String(36), unique=True, index=True)
 
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        server_default=text("TIMEZONE('utc', now())")
+    )
     expires_at: Mapped[datetime]
     updated_at: Mapped[Optional[datetime]] = mapped_column(onupdate=datetime.now)
 
