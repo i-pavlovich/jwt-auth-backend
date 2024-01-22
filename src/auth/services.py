@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +32,14 @@ async def get_user_by_email(
     stmt = select(User).where(User.email == email)
     result: Result = await session.execute(stmt)
     return result.scalars().first()
+
+
+async def get_user_by_id(
+    id: int,
+    session: AsyncSession,
+) -> User | None:
+    user = await session.get(User, id)
+    return user
 
 
 async def authenticate_user(
@@ -72,3 +80,24 @@ async def create_refresh_token(
     await session.commit()
     await session.refresh(refresh_token)
     return refresh_token
+
+
+async def get_refresh_token(
+    value: str,
+    session: AsyncSession,
+) -> RefreshToken | None:
+    stmt = select(RefreshToken).where(RefreshToken.value == value)
+    result = await session.execute(stmt)
+    return result.scalars().first()
+
+
+async def delete_refresh_token_by_value(
+    value: str,
+    session: AsyncSession,
+) -> RefreshToken:
+    stmt = (
+        delete(RefreshToken).where(RefreshToken.value == value).returning(RefreshToken)
+    )
+    result = await session.execute(stmt)
+    await session.commit()
+    return result.scalars().first()

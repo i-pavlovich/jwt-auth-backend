@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import services
-from auth.dependencies import valid_user_registration
+from auth.dependencies import (
+    valid_refresh_token,
+    valid_refresh_token_user,
+    valid_user_registration,
+)
 from auth.models import RefreshToken, User
 from auth.schemas import (
     TokenResponseSchema,
@@ -41,4 +45,27 @@ async def user_authentication(
     response.set_cookie(**cookie_settings)
     return TokenResponseSchema(
         access_token=encode_jwt(user), refresh_token=refresh_token.value
+    )
+
+
+@router.post("/refresh_tokens")
+async def refresh_tokens(
+    response: Response,
+    background_tasks: BackgroundTasks,
+    refresh_token: RefreshToken = Depends(valid_refresh_token),
+    user: User = Depends(valid_refresh_token_user),
+    session: AsyncSession = Depends(get_session),
+) -> TokenResponseSchema:
+    new_refresh_token: RefreshToken = await services.create_refresh_token(
+        refresh_token.user_id, session
+    )
+    cookie_settings = get_refresh_token_cookie_settings(new_refresh_token)
+    response.set_cookie(**cookie_settings)
+    background_tasks.add_task(
+        services.delete_refresh_token_by_value,
+        value=refresh_token.value,
+        session=session,
+    )
+    return TokenResponseSchema(
+        access_token=encode_jwt(user), refresh_token=new_refresh_token.value
     )
