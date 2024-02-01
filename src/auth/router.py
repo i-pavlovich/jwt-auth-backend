@@ -69,3 +69,18 @@ async def refresh_tokens(
     return TokenResponseSchema(
         access_token=encode_jwt(user), refresh_token=new_refresh_token.value
     )
+
+@router.delete("/logout")
+def user_logout(
+    response: Response,
+    background_tasks: BackgroundTasks,
+    refresh_token: RefreshToken = Depends(valid_refresh_token),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    cookie_settings = get_refresh_token_cookie_settings(refresh_token)
+    response.delete_cookie(cookie_settings.get("key"))
+    background_tasks.add_task(
+        services.delete_refresh_token_by_value,
+        value=refresh_token.value,
+        session=session,
+    )
